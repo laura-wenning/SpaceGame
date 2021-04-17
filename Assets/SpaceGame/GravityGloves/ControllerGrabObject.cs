@@ -2,14 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Valve.VR;
-// using Debug;
 
 public class ControllerGrabObject : MonoBehaviour
 {
   // Start is called before the first frame update
-  public SteamVR_Input_Sources handType;
   public SteamVR_Behaviour_Pose controllerPose;
-  public SteamVR_Action_Boolean grabAction;
 
   private GameObject collidingObject;
   private GameObject objectInHand;
@@ -65,12 +62,14 @@ public class ControllerGrabObject : MonoBehaviour
   // Update is called once per frame
   void Update()
   {
-    if (grabAction.GetLastStateDown(handType)) {
-      if (collidingObject) { GrabObject(); }
-    }
+    
+  }
 
-    if (grabAction.GetLastStateUp(handType)) {
-      if (objectInHand) { ReleaseObject(); }
-    }
+  public void AttemptGrab() {
+    if (collidingObject) { GrabObject(); }
+  }
+
+  public void AttemptRelease() {
+    if (objectInHand) { ReleaseObject(); }
   }
 }

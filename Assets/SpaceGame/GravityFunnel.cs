@@ -7,58 +7,110 @@ public class GravityFunnel : MonoBehaviour
 {
   public SteamVR_Input_Sources handType;
   public SteamVR_Behaviour_Pose controllerPose;
-  public SteamVR_Action_Boolean activateAction;
-  public SteamVR_Action_Boolean pullAction;
+  public SteamVR_Action_Boolean primeAction;
+  public SteamVR_Action_Boolean fireAction;
 
-  public GameObject gravityFunnelPrefab;
-  private GameObject gravityFunnel;
-  private Transform gravityFunnelTransform;
-  private Vector3 hitPoint;
-  private Rigidbody activeTarget;
+  public GameObject funnelPrefab;
+  public GameObject holePrefab;
+
+  private GameObject funnel;
+  private Transform funnelTransform;
+  private GameObject hole;
+
+  public float x, y, z;
 
 
+  private bool funnelPrimed;
+  private bool funnelLocked;
+  private GameObject funnelTarget;
 
   // Start is called before the first frame update
   void Start()
   {
-      gravityFunnel = Instantiate(gravityFunnelPrefab);
-      gravityFunnelTransform = gravityFunnel.transform;
+      funnel = Instantiate(funnelPrefab);
+      hole = Instantiate(holePrefab);
+      hole.transform.parent = transform;
+      funnelTransform = funnel.transform;
+      funnelPrimed = false;
+      funnelLocked = false;
   }
 
   // Update is called once per frame
   void Update() {
-    if (activateAction.GetState(handType)) {
-      RaycastHit hit;
-      ActivateFunnel();
-      // ShowTarget(hit)
-
+    if (primeAction.GetState(handType)) {
+      PrimeFunnel();
+      if (fireAction.GetState(handType)) {
+        FireFunnel();
+      } else {
+        ReleaseFunnel();
+      }
     } else {
-      gravityFunnel.SetActive(false);
+      DeprimeFunnel();
     }
   }
 
-  private void ActivateFunnel() {
-    gravityFunnel.SetActive(true);
-    gravityFunnelTransform.position = controllerPose.transform.position; 
-    gravityFunnelTransform.rotation = controllerPose.transform.rotation; 
-    gravityFunnelTransform.Rotate(90, 0, 0); // Should be 135, need to match the target vector
-    gravityFunnelTransform.Translate(0f, .25f, 0.05f);
+  private void FireFunnel() {
+    if (!funnelTarget) { return; }
+    var tether = funnelTarget.GetComponent<Tetherable>();
+    if (!tether) { return; }
 
+    if (funnelTarget)
+    funnelTarget.GetComponent<Rigidbody>().AddForce(
+      funnelTransform.TransformDirection(Vector3.down) / 5,
+      ForceMode.Force
+    );
+  }
+
+  private void ReleaseFunnel() {
+    return;
+  }
+
+  private void DeprimeFunnel() {
+    funnel.SetActive(false);
+    hole.GetComponent<GravityHole>().Deactivate();
+    hole.SetActive(false);
+    funnelPrimed = false;
+    funnelLocked = false;
+    funnelTarget = null;
+
+  }
+
+  private void PrimeFunnel() {
+    // funnel.SetActive(true);
+    hole.SetActive(true);
+    funnelTransform.position = controllerPose.transform.position; 
+    hole.transform.localPosition = new Vector3(0, 0, 0.2f);
+    hole.transform.rotation = controllerPose.transform.rotation;
+
+    if (funnelLocked) {
+      // Angle towards target
+      // If > 5 degrees, forcibly break
+    } else {
+      funnelTransform.rotation = controllerPose.transform.rotation; 
+      funnelTransform.Rotate(135, 0, 0); // Should be 135, need to match the target vector
+      funnelTransform.Translate(0f, .125f, 0.05f);
+    }
+    
     // If we're looking 
     // If hit
     RaycastHit hit;
-    Vector3 targetPos = controllerPose.transform.position;
-    Vector3 targetVector = transform.forward * 200;
-    Debug.DrawRay(targetPos, targetVector, Color.yellow);
+
+    // TODO - currently aligned on the top of the funnel. Should be in center
+    Vector3 targetPos = funnelTransform.position; //controllerPose.transform.position;
+    Vector3 targetVector = funnelTransform.TransformDirection(Vector3.up);
+
     if (Physics.Raycast(targetPos, targetVector, out hit, 100)) {
-      // if (!activeTarget) { activeTarget = hit.rigidbody; }
       if (!hit.rigidbody) { return; }
-      // wtf. Should bring towards hand. Goes whichever wobbly direction
-      // We need to rotate this somehow
-      hit.rigidbody.AddForce(
-        Quaternion.AngleAxis(-135, Vector3.right) * controllerPose.transform.eulerAngles / -100,
-        ForceMode.Force
-      );
+      funnelTarget = hit.rigidbody.gameObject;
+      var tether = funnelTarget.GetComponent<Tetherable>();
+      if (tether) { tether.TargetObject(); }
+      
+    } else {
+      if (funnelTarget != null) {
+        var tether = funnelTarget.GetComponent<Tetherable>();
+        if (tether) { tether.UntargetObject(); }
+        funnelTarget = null;
+      }
     }
   }
 }
